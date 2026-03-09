@@ -1,0 +1,222 @@
+import React, { useState, useEffect } from 'react';
+import { ThermometerSnowflake, Building, Hash, Loader2, AlertCircle, Zap, Info } from 'lucide-react';
+
+export default function App() {
+  const [roomID, setRoomID] = useState('');
+  const [dormType, setDormType] = useState('1'); // '1' for Male, '0' for Female
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [isValid, setIsValid] = useState(false);
+
+  // Validate Room ID (e.g., A201: 1 Letter, 3 Digits)
+  useEffect(() => {
+    const regex = /^[a-zA-Z]\d{3}$/;
+    setIsValid(regex.test(roomID));
+  }, [roomID]);
+
+  const handleCheck = async (e) => {
+    e.preventDefault();
+    if (!isValid) return;
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const formattedRoomID = roomID.toUpperCase();
+      // Target API URL
+      const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
+      
+      // Try multiple proxies since academic networks sometimes block certain proxy IPs
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+      ];
+
+      let success = false;
+      let textData = "";
+
+      for (const proxyUrl of proxies) {
+        try {
+          const response = await fetch(proxyUrl);
+          if (response.ok) {
+            textData = await response.text();
+            // Check if it returned the expected data (e.g. "剩餘金額: 571.0元")
+            if (textData && textData.includes('剩餘金額')) {
+              success = true;
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn("Proxy failed:", proxyUrl);
+        }
+      }
+
+      if (!success) {
+        throw new Error("Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.");
+      }
+
+      // Parse the text: "剩餘金額: 571.0元" -> extract 571.0
+      const match = textData.match(/[\d.]+/);
+      setResult({
+        credits: match ? match[0] : '0.00',
+        raw: textData.trim()
+      });
+
+    } catch (err) {
+      setError(err.message || "Failed to fetch data. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0B1120] text-slate-200 font-sans selection:bg-cyan-500/30 flex flex-col items-center justify-center p-4 sm:p-8 relative overflow-hidden">
+      
+      {/* Ambient Background Glows */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none" />
+
+      <main className="w-full max-w-md relative z-10">
+        
+        {/* Header */}
+        <div className="text-center mb-8 space-y-2">
+          <div className="inline-flex items-center justify-center p-3 bg-cyan-500/10 rounded-2xl mb-4 border border-cyan-500/20 shadow-[0_0_30px_-5px_rgba(6,182,212,0.3)]">
+            <ThermometerSnowflake className="w-8 h-8 text-cyan-400" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-white flex items-center justify-center gap-2">
+            AC Status <span className="text-cyan-400">Portal</span>
+          </h1>
+          <p className="text-slate-400 text-sm">Monitor dormitory air conditioning credits instantly.</p>
+        </div>
+
+        {/* Form Card */}
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl mb-6">
+          <form onSubmit={handleCheck} className="space-y-6">
+            
+            {/* Gender Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <Building className="w-4 h-4 text-cyan-400" />
+                Dormitory Type
+              </label>
+              <div className="flex bg-slate-950/50 p-1 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDormType('1')}
+                  className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-300 ${
+                    dormType === '1'
+                      ? 'bg-cyan-500/20 text-cyan-300 shadow-sm border border-cyan-500/30'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Male Dorm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDormType('0')}
+                  className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-300 ${
+                    dormType === '0'
+                      ? 'bg-purple-500/20 text-purple-300 shadow-sm border border-purple-500/30'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Female Dorm
+                </button>
+              </div>
+            </div>
+
+            {/* Room ID Input */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2" htmlFor="roomID">
+                <Hash className="w-4 h-4 text-cyan-400" />
+                Room Number
+              </label>
+              <div className="relative">
+                <input
+                  id="roomID"
+                  type="text"
+                  placeholder="e.g. A201"
+                  maxLength={4}
+                  value={roomID}
+                  onChange={(e) => setRoomID(e.target.value.toUpperCase())}
+                  className="w-full bg-slate-950/50 border border-slate-700/50 text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-slate-600"
+                />
+                {roomID.length > 0 && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                    {isValid ? (
+                      <span className="text-xs font-semibold bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md border border-emerald-500/20">Valid format</span>
+                    ) : (
+                      <span className="text-xs font-semibold bg-rose-500/20 text-rose-400 px-2 py-1 rounded-md border border-rose-500/20">Needs 1 letter + 3 numbers</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={!isValid || loading}
+              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-xl shadow-lg shadow-cyan-900/20 transition-all flex items-center justify-center gap-2 border border-cyan-400/20"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Check AC Credits'
+              )}
+            </button>
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-rose-300 leading-relaxed">{error}</p>
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Results Card */}
+        {result && !loading && !error && (
+          <div className="bg-slate-900/80 backdrop-blur-2xl border border-cyan-500/30 rounded-3xl p-6 sm:p-8 shadow-[0_0_40px_-10px_rgba(6,182,212,0.15)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col items-center justify-center text-center space-y-2 mb-6">
+              <div className="p-2 bg-cyan-500/10 rounded-full mb-2">
+                <Zap className="w-6 h-6 text-cyan-400" />
+              </div>
+              <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">AC Credits Left</p>
+              
+              {/* Massive Credits Display */}
+              <div className="flex items-baseline justify-center gap-2">
+                <div className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-cyan-100 to-cyan-400 tracking-tight">
+                  {result.credits}
+                </div>
+                <span className="text-2xl font-bold text-cyan-500">元</span>
+              </div>
+              <p className="text-cyan-400/80 text-sm font-medium">Room {roomID.toUpperCase()}</p>
+            </div>
+
+            {/* Raw System Response */}
+            <div className="mt-8 pt-6 border-t border-slate-800">
+              <div className="flex items-center gap-2 mb-4 text-sm font-medium text-slate-400">
+                <Info className="w-4 h-4" />
+                System Response
+              </div>
+              <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700/50 flex flex-col gap-1 text-center">
+                <span className="text-lg font-medium text-slate-200">
+                  {result.raw}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
