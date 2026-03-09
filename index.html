@@ -1,480 +1,633 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dormitory AC Monitor</title>
-  
-  <!-- Load React via CDN -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  
-  <!-- Load Babel to transpile JSX in the browser -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Load Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AC Status Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Hide scrollbar for cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            transition: opacity 1s ease;
+            opacity: 0.8;
+        }
+    </style>
 </head>
-<body>
-  <div id="root"></div>
+<body class="bg-gray-50/90 dark:bg-[#0f172a]/95 text-gray-900 dark:text-gray-100 font-sans min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-x-hidden">
 
-  <!-- The actual React App inside a Babel script -->
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+    <!-- Interactive Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
 
-    // --- Inline Icon Components (Replaces lucide-react dependencies) ---
-    const IconWrapper = ({ children, className }) => (
-      <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {children}
-      </svg>
-    );
-    const Sun = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></IconWrapper>;
-    const Moon = ({ className }) => <IconWrapper className={className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></IconWrapper>;
-    const Building = ({ className }) => <IconWrapper className={className}><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></IconWrapper>;
-    const Hash = ({ className }) => <IconWrapper className={className}><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></IconWrapper>;
-    const Loader2 = ({ className }) => <IconWrapper className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconWrapper>;
-    const AlertCircle = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></IconWrapper>;
-    const Zap = ({ className }) => <IconWrapper className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>;
-    const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></IconWrapper>;
-    const ThermometerSnowflake = ({ className }) => <IconWrapper className={className}><path d="M2 12h10"/><path d="M9 4v16"/><path d="m3 9 3 3-3 3"/><path d="m12 6 3-3 3 3"/><path d="M21 12h-4"/><path d="m15 15 3 3 3-3"/></IconWrapper>;
-    const Globe = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconWrapper>;
-    const ExternalLink = ({ className }) => <IconWrapper className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></IconWrapper>;
-    const FileText = ({ className }) => <IconWrapper className={className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></IconWrapper>;
-    const Activity = ({ className }) => <IconWrapper className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></IconWrapper>;
+    <main class="w-full max-w-5xl z-10 flex flex-col items-center relative">
+        
+        <!-- Header -->
+        <div class="text-center mb-8 space-y-3 animate-fade-in w-full flex flex-col items-center">
+            <div class="inline-flex items-center justify-center p-4 bg-blue-100/90 dark:bg-blue-900/40 backdrop-blur-sm rounded-2xl mb-2 text-blue-600 dark:text-blue-400">
+                <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h10"/><path d="M9 4v16"/><path d="m3 9 3 3-3 3"/><path d="m12 6 3-3 3 3"/><path d="M21 12h-4"/><path d="m15 15 3 3 3-3"/></svg>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight" data-i18n="title">AC Status Portal</h1>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-indigo-100/90 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 backdrop-blur-sm" data-i18n="campusBadge">
+                Jieren Campus Only
+            </span>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-2" data-i18n="subtitle">
+                Monitor dormitory air conditioning credits instantly.
+            </p>
+        </div>
 
-    // --- Translations Dictionary ---
-    const translations = {
-      en: {
-        title: "AC Status Portal",
-        campusBadge: "Jieren Campus Only",
-        subtitle: "Monitor dormitory air conditioning credits instantly.",
-        dormTypeLabel: "Dormitory Type",
-        maleDorm: "Male Dorm",
-        femaleDorm: "Female Dorm",
-        roomNumLabel: "Room Number",
-        placeholder: "e.g. A201",
-        valid: "Valid",
-        invalid: "Invalid",
-        btnCheck: "Check AC Credits",
-        btnConnecting: "Connecting...",
-        creditsLeft: "AC Credits Left",
-        room: "Room",
-        currency: "元",
-        sysResponse: "System Response",
-        errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
-        errFetch: "Failed to fetch data. Please check your connection.",
-        tcuSystem: "TCU System",
-        lateForm: "Late Arrive Form",
-        statsTitle: "Live Usage Stats",
-        statsTotal: "Total",
-        statsMonthly: "This Month",
-        statsLastWeek: "Last Week",
-        statsToday: "Today"
-      },
-      zh: {
-        title: "冷氣餘額查詢",
-        campusBadge: "限介仁校區",
-        subtitle: "即時監控宿舍冷氣電費餘額。",
-        dormTypeLabel: "宿舍類型",
-        maleDorm: "男生宿舍",
-        femaleDorm: "女生宿舍",
-        roomNumLabel: "房間號碼",
-        placeholder: "例如: A201",
-        valid: "格式正確",
-        invalid: "格式錯誤",
-        btnCheck: "查詢冷氣餘額",
-        btnConnecting: "連線中...",
-        creditsLeft: "冷氣剩餘金額",
-        room: "房號",
-        currency: "元",
-        sysResponse: "系統原始回應",
-        errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
-        errFetch: "獲取資料失敗，請檢查您的網路連線狀態。",
-        tcuSystem: "TCU 校務系統",
-        lateForm: "晚歸請假表單",
-        statsTitle: "即時查詢統計",
-        statsTotal: "總計",
-        statsMonthly: "本月",
-        statsLastWeek: "上週",
-        statsToday: "今日"
-      }
-    };
+        <!-- Main Layout Container -->
+        <div class="w-full flex flex-col lg:flex-row gap-6 justify-center items-start relative z-10">
+            
+            <!-- Left Column: Form Card -->
+            <div class="w-full lg:w-[480px] bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/50 rounded-3xl p-6 shadow-2xl transition-colors duration-300 relative z-20 shrink-0">
+                
+                <!-- Utility Buttons Row -->
+                <div class="flex flex-wrap items-center gap-2 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700/50">
+                    <button id="btn-lang" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100/80 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200/80 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <span id="langText" class="text-sm font-bold tracking-wide">EN</span>
+                    </button>
+                    <button id="btn-theme" class="p-2 rounded-xl bg-gray-100/80 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200/80 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg id="icon-sun" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                        <svg id="icon-moon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                    </button>
+                    <a href="https://admin.tcu.edu.tw/TCUstweb/stlogin.php" target="_blank" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100/80 dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200/80 dark:border-gray-700/50 text-sm font-semibold">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                        <span data-i18n="tcuSystem">TCU System</span>
+                    </a>
+                    <a href="https://docs.google.com/forms/d/e/1FAIpQLScpNFWH5ujRJ2EnpDQ8fE3fGerV-WDwul4ZOe2Z5Dg2AeSehw/viewform?usp=dialog" target="_blank" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50/90 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all border border-blue-200/80 dark:border-blue-800/50 text-sm font-semibold">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <span data-i18n="lateForm">Late Arrive Form</span>
+                    </a>
+                </div>
 
-    function App() {
-      const [roomID, setRoomID] = useState('');
-      const [dormType, setDormType] = useState('1'); // '1' for Male, '0' for Female
-      const [loading, setLoading] = useState(false);
-      const [result, setResult] = useState(null);
-      const [error, setError] = useState(null);
-      const [isValid, setIsValid] = useState(false);
-      const [isDark, setIsDark] = useState(true); // Dark theme default
-      const [lang, setLang] = useState('en'); // Language state
-      
-      const [fetchedDormType, setFetchedDormType] = useState(null);
-      const [fetchedRoomID, setFetchedRoomID] = useState(null);
-      const [stats, setStats] = useState(null);
+                <form id="checkForm" class="space-y-6">
+                    
+                    <!-- Sliding Dormitory Selection -->
+                    <div class="space-y-3">
+                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>
+                            <span data-i18n="dormTypeLabel">Dormitory Type</span>
+                        </label>
+                        <div class="relative flex bg-gray-100 dark:bg-gray-900/60 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden">
+                            <!-- Sliding Background Element -->
+                            <div id="slider-bg" class="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-0.375rem)] bg-white dark:bg-[#1e293b] rounded-lg shadow-sm border border-gray-200/80 dark:border-gray-700/80 transition-transform duration-300 ease-in-out translate-x-0"></div>
 
-      const t = translations[lang]; // Active translation
+                            <button type="button" id="btn-male" class="relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-blue-600 dark:text-blue-400">
+                                <span data-i18n="maleDorm">Male Dorm</span>
+                            </button>
+                            <button type="button" id="btn-female" class="relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                <span data-i18n="femaleDorm">Female Dorm</span>
+                            </button>
+                        </div>
+                    </div>
 
-      // Fetch and Increment Stats
-      useEffect(() => {
-        const fetchStats = async () => {
-          const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
-          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-          
-          // 1. The "Ping" (POST) - Trigger the Worker's Increment Logic
-          // We send a simple POST with no headers to avoid strict CORS preflight blocks
-          try {
-            const postRes = await fetch(targetUrl, { method: 'POST' });
-            if (!postRes.ok) throw new Error("Direct ping failed");
-          } catch (err) {
-            // Fallback: If blocked, try to send the ping through the proxy
-            try {
-              await fetch(proxyUrl, { method: 'POST' });
-            } catch (proxyErr) {
-              console.warn("Ping failed via proxy too.");
+                    <!-- Room ID Input -->
+                    <div class="space-y-3">
+                        <label class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2" for="roomID">
+                            <svg class="w-4 h-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></svg>
+                            <span data-i18n="roomNumLabel">Room Number</span>
+                        </label>
+                        <div class="relative">
+                            <input id="roomID" type="text" placeholder="e.g. A201" maxlength="4" class="w-full bg-gray-50/80 dark:bg-gray-900/60 border border-gray-300 dark:border-gray-700/50 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600 backdrop-blur-sm" />
+                            <div id="validationBadge" class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center hidden">
+                                <span id="badgeValid" class="hidden text-xs font-semibold bg-green-100/90 text-green-700 dark:bg-green-900/40 dark:text-green-400 px-2 py-1 rounded-md" data-i18n="valid">Valid</span>
+                                <span id="badgeInvalid" class="hidden text-xs font-semibold bg-red-100/90 text-red-700 dark:bg-red-900/40 dark:text-red-400 px-2 py-1 rounded-md" data-i18n="invalid">Invalid</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button id="btnSubmit" type="submit" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl shadow-lg shadow-blue-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                        <svg id="loadingIcon" class="w-5 h-5 animate-spin hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                        <span id="btnText" data-i18n="btnCheck">Check AC Credits</span>
+                    </button>
+
+                    <!-- Error Message -->
+                    <div id="errorContainer" class="hidden p-4 bg-red-50/90 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-xl flex items-start gap-3 backdrop-blur-sm">
+                        <svg class="w-5 h-5 text-red-500 dark:text-red-400 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                        <p id="errorMessage" class="text-sm text-red-700 dark:text-red-300 leading-relaxed"></p>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Right Column: Results & Live Stats -->
+            <div class="w-full lg:w-[480px] flex flex-col gap-6 shrink-0 relative z-20">
+                
+                <!-- Results Card -->
+                <div id="resultCard" class="hidden bg-white/95 dark:bg-[#1e293b]/95 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/50 rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in transition-colors">
+                    <div class="flex flex-col items-center justify-center text-center space-y-2">
+                        <div class="p-2 bg-blue-100/90 dark:bg-blue-900/40 rounded-full mb-2">
+                            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        </div>
+                        <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest" data-i18n="creditsLeft">
+                            AC Credits Left
+                        </p>
+                        <div class="flex items-baseline justify-center gap-2 mb-2">
+                            <div id="resultCredits" class="text-5xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight">
+                                0.00
+                            </div>
+                            <span class="text-2xl font-bold text-gray-400 dark:text-gray-500" data-i18n="currency">元</span>
+                        </div>
+                        <p id="resultRoomInfo" class="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                            <!-- Populated dynamically -->
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Live Stats Card -->
+                <div class="bg-white/70 dark:bg-[#1e293b]/80 border border-gray-200/80 dark:border-gray-700/50 rounded-3xl p-5 shadow-lg backdrop-blur-md transition-colors">
+                    <div class="flex items-center gap-2 mb-3 justify-center">
+                        <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider" data-i18n="statsTitle">Live Usage Stats</h3>
+                    </div>
+                    
+                    <div class="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700/50">
+                        <div class="flex flex-col items-center flex-1 px-1">
+                            <span class="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5" data-i18n="statsToday">Today</span>
+                            <span id="statToday" class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">-</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 px-1">
+                            <span class="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5" data-i18n="statsLastWeek">Last Week</span>
+                            <span id="statLastWeek" class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">-</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 px-1">
+                            <span class="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5" data-i18n="statsMonthly">This Month</span>
+                            <span id="statMonthly" class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">-</span>
+                        </div>
+                        <div class="flex flex-col items-center flex-1 px-1">
+                            <span class="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5" data-i18n="statsTotal">Total</span>
+                            <span id="statTotal" class="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">-</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- SEO Footer -->
+    <div class="mt-12 text-center max-w-2xl mx-auto space-y-3 opacity-60 hover:opacity-100 transition-opacity duration-300 px-4 z-10 relative pb-8">
+        <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            <strong>About Jieren Campus AC Monitor:</strong> This is an independent utility tool designed specifically for students living in the <strong>Tzu Chi University (TCU) Jieren Campus</strong> dormitories. Easily track your room air conditioning balances, check valid room credits, and stay updated on daily campus AC usage. 
+        </p>
+        <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            <strong>關於慈大介仁校區冷氣查詢：</strong> 本系統專為<strong>慈濟大學介仁校區</strong>住宿生設計，提供即時的介仁宿舍冷氣電費餘額查詢服務，幫助您輕鬆掌握冷氣儲值金狀態與校園用電數據。
+        </p>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // --- Translations ---
+        const translations = {
+            en: {
+                title: "AC Status Portal",
+                campusBadge: "Jieren Campus Only",
+                subtitle: "Monitor dormitory air conditioning credits instantly.",
+                dormTypeLabel: "Dormitory Type",
+                maleDorm: "Male Dorm",
+                femaleDorm: "Female Dorm",
+                roomNumLabel: "Room Number",
+                placeholder: "e.g. A201",
+                valid: "Valid",
+                invalid: "Invalid",
+                btnCheck: "Check AC Credits",
+                btnConnecting: "Connecting...",
+                creditsLeft: "AC Credits Left",
+                room: "Room",
+                currency: "元",
+                errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
+                errFetch: "Failed to fetch data. Please check your connection.",
+                tcuSystem: "TCU System",
+                lateForm: "Late Arrive Form",
+                statsTitle: "Live Usage Stats",
+                statsTotal: "Total",
+                statsMonthly: "This Month",
+                statsLastWeek: "Last Week",
+                statsToday: "Today"
+            },
+            zh: {
+                title: "冷氣餘額查詢",
+                campusBadge: "限介仁校區",
+                subtitle: "即時監控宿舍冷氣電費餘額。",
+                dormTypeLabel: "宿舍類型",
+                maleDorm: "男生宿舍",
+                femaleDorm: "女生宿舍",
+                roomNumLabel: "房間號碼",
+                placeholder: "例如: A201",
+                valid: "格式正確",
+                invalid: "格式錯誤",
+                btnCheck: "查詢冷氣餘額",
+                btnConnecting: "連線中...",
+                creditsLeft: "冷氣剩餘金額",
+                room: "房號",
+                currency: "元",
+                errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
+                errFetch: "獲取資料失敗，請檢查您的網路連線狀態。",
+                tcuSystem: "TCU 校務系統",
+                lateForm: "晚歸請假表單",
+                statsTitle: "即時查詢統計",
+                statsTotal: "總計",
+                statsMonthly: "本月",
+                statsLastWeek: "上週",
+                statsToday: "今日"
             }
-          }
-
-          // 2. The "Pull" (GET) - Retrieve freshly updated JSON data
-          try {
-            const res = await fetch(targetUrl);
-            if (res.ok) {
-              const data = await res.json();
-              setStats(data);
-            } else {
-              throw new Error("Direct fetch blocked by CORS");
-            }
-          } catch (err) {
-            // CORS Fallback for GET request
-            try {
-              const proxyRes = await fetch(proxyUrl);
-              if (proxyRes.ok) {
-                const data = await proxyRes.json();
-                setStats(data);
-              }
-            } catch (proxyErr) {
-              console.warn("Stats fetch skipped: Environment prevents connection.");
-            }
-          }
         };
 
-        fetchStats();
-      }, []);
+        // --- State Variables ---
+        let currentLang = 'en';
+        let isDark = true;
+        let dormType = '1'; // '1' = Male, '0' = Female
+        let roomID = '';
+        let isValid = false;
+        let isLoading = false;
+        let stats = null;
 
-      // Validate Room ID (e.g., A201: 1 Letter, 3 Digits)
-      useEffect(() => {
-        const regex = /^[a-zA-Z]\d{3}$/;
-        setIsValid(regex.test(roomID));
-      }, [roomID]);
+        // --- DOM Elements ---
+        const htmlRoot = document.documentElement;
+        const btnLang = document.getElementById('btn-lang');
+        const langText = document.getElementById('langText');
+        const btnTheme = document.getElementById('btn-theme');
+        const iconSun = document.getElementById('icon-sun');
+        const iconMoon = document.getElementById('icon-moon');
+        
+        // Form & Sliding elements
+        const form = document.getElementById('checkForm');
+        const inputRoom = document.getElementById('roomID');
+        const btnMale = document.getElementById('btn-male');
+        const btnFemale = document.getElementById('btn-female');
+        const sliderBg = document.getElementById('slider-bg');
+        const validationBadge = document.getElementById('validationBadge');
+        const badgeValid = document.getElementById('badgeValid');
+        const badgeInvalid = document.getElementById('badgeInvalid');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const btnText = document.getElementById('btnText');
+        const loadingIcon = document.getElementById('loadingIcon');
+        
+        // Feedback elements
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultCard = document.getElementById('resultCard');
+        const resultCredits = document.getElementById('resultCredits');
+        const resultRoomInfo = document.getElementById('resultRoomInfo');
 
-      const handleCheck = async (e) => {
-        e.preventDefault();
-        if (!isValid) return;
+        // Stats elements
+        const statToday = document.getElementById('statToday');
+        const statLastWeek = document.getElementById('statLastWeek');
+        const statMonthly = document.getElementById('statMonthly');
+        const statTotal = document.getElementById('statTotal');
 
-        setLoading(true);
-        setError(null);
-        setResult(null);
-
-        try {
-          const formattedRoomID = roomID.toUpperCase();
-          // Target API URL
-          const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
-          
-          const proxies = [
-            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-          ];
-
-          let success = false;
-          let textData = "";
-
-          for (const proxyUrl of proxies) {
-            try {
-              const response = await fetch(proxyUrl);
-              if (response.ok) {
-                textData = await response.text();
-                if (textData && textData.includes('剩餘金額')) {
-                  success = true;
-                  break;
+        // --- Language Switcher ---
+        function updateLanguage() {
+            const t = translations[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) {
+                    if (el.tagName === 'INPUT') el.placeholder = t[key];
+                    else el.textContent = t[key];
                 }
-              }
-            } catch (err) {
-              console.warn("Proxy failed:", proxyUrl);
-            }
-          }
-
-          if (!success) {
-            throw new Error(t.errProxy);
-          }
-
-          const match = textData.match(/[\d.]+/);
-          setResult({
-            credits: match ? match[0] : '0.00'
-          });
-          setFetchedDormType(dormType);
-          setFetchedRoomID(formattedRoomID);
-
-        } catch (err) {
-          setError(err.message || t.errFetch);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const toggleLanguage = () => {
-        setLang(lang === 'en' ? 'zh' : 'en');
-      };
-
-      // Helper function to safely extract stats regardless of capitalization
-      const getStatValue = (keyLower, keyUpper, keySpaced) => {
-        if (!stats) return '-';
-        if (stats[keyLower] !== undefined && stats[keyLower] !== null) return stats[keyLower];
-        if (stats[keyUpper] !== undefined && stats[keyUpper] !== null) return stats[keyUpper];
-        if (keySpaced && stats[keySpaced] !== undefined && stats[keySpaced] !== null) return stats[keySpaced];
-        return '-';
-      };
-
-      return (
-        <div className={isDark ? 'dark' : ''}>
-          <div className="min-h-screen bg-gray-50 dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-hidden">
+            });
+            inputRoom.placeholder = t.placeholder;
+            langText.textContent = currentLang === 'en' ? 'EN' : '中';
             
-            <main className="w-full max-w-5xl z-10 flex flex-col items-center">
-              
-              {/* Header */}
-              <div className="text-center mb-8 space-y-3 animate-in fade-in duration-500 w-full flex flex-col items-center">
-                <div className="inline-flex items-center justify-center p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-2 text-blue-600 dark:text-blue-400">
-                  <ThermometerSnowflake className="w-8 h-8" />
-                </div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {t.title}
-                </h1>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
-                  {t.campusBadge}
-                </span>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
-                  {t.subtitle}
-                </p>
-              </div>
+            // Update button text contextually if loading
+            if(isLoading) {
+                btnText.textContent = t.btnConnecting;
+            }
+        }
 
-              {/* Main Two-Column Layout Container */}
-              <div className="w-full flex flex-col lg:flex-row gap-6 justify-center items-start">
+        btnLang.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'zh' : 'en';
+            updateLanguage();
+        });
+
+        // --- Theme Switcher ---
+        btnTheme.addEventListener('click', () => {
+            isDark = !isDark;
+            if (isDark) {
+                htmlRoot.classList.add('dark');
+                iconSun.classList.add('hidden');
+                iconMoon.classList.remove('hidden');
+            } else {
+                htmlRoot.classList.remove('dark');
+                iconSun.classList.remove('hidden');
+                iconMoon.classList.add('hidden');
+            }
+        });
+
+        // --- Sliding Dorm Type Selector ---
+        function setDormType(type) {
+            dormType = type;
+            if (dormType === '1') {
+                sliderBg.classList.replace('translate-x-full', 'translate-x-0');
+                btnMale.className = "relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-blue-600 dark:text-blue-400";
+                btnFemale.className = "relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200";
+            } else {
+                sliderBg.classList.replace('translate-x-0', 'translate-x-full');
+                btnMale.className = "relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200";
+                btnFemale.className = "relative flex-1 flex justify-center items-center py-2.5 text-sm font-medium z-10 rounded-lg transition-colors duration-300 text-pink-600 dark:text-pink-400";
+            }
+        }
+        btnMale.addEventListener('click', () => setDormType('1'));
+        btnFemale.addEventListener('click', () => setDormType('0'));
+
+        // --- Input Validation ---
+        inputRoom.addEventListener('input', (e) => {
+            roomID = e.target.value.toUpperCase();
+            e.target.value = roomID; // enforce uppercase visually
+            
+            const regex = /^[a-zA-Z]\d{3}$/;
+            isValid = regex.test(roomID);
+            
+            if (roomID.length > 0) {
+                validationBadge.classList.remove('hidden');
+                if (isValid) {
+                    badgeValid.classList.remove('hidden');
+                    badgeInvalid.classList.add('hidden');
+                } else {
+                    badgeValid.classList.add('hidden');
+                    badgeInvalid.classList.remove('hidden');
+                }
+            } else {
+                validationBadge.classList.add('hidden');
+            }
+            btnSubmit.disabled = !isValid || isLoading;
+        });
+
+        // --- Form Submission & API Call ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!isValid) return;
+
+            // Set Loading state
+            isLoading = true;
+            btnSubmit.disabled = true;
+            btnText.textContent = translations[currentLang].btnConnecting;
+            loadingIcon.classList.remove('hidden');
+            errorContainer.classList.add('hidden');
+            resultCard.classList.add('hidden');
+
+            const formattedRoomID = roomID;
+            const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
+            
+            const proxies = [
+                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
+
+            let success = false;
+            let textData = "";
+
+            try {
+                for (const proxyUrl of proxies) {
+                    try {
+                        const response = await fetch(proxyUrl);
+                        if (response.ok) {
+                            textData = await response.text();
+                            if (textData && textData.includes('剩餘金額')) {
+                                success = true;
+                                break;
+                            }
+                        }
+                    } catch (err) {
+                        console.warn("Proxy failed:", proxyUrl);
+                    }
+                }
+
+                if (!success) throw new Error(translations[currentLang].errProxy);
+
+                // Parse Result
+                const match = textData.match(/[\d.]+/);
+                const credits = match ? match[0] : '0.00';
                 
-                {/* Left Column: Form Card */}
-                <div className="w-full lg:w-[480px] bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700/50 rounded-3xl p-6 shadow-xl transition-colors duration-300 relative z-20 shrink-0">
-                  
-                  {/* Utility Buttons Row */}
-                  <div className="flex flex-wrap items-center gap-2 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700/50">
-                    <button
-                      type="button"
-                      onClick={toggleLanguage}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label="Toggle Language"
-                    >
-                      <Globe className="w-4 h-4" />
-                      <span className="text-sm font-bold tracking-wide">{lang === 'en' ? '中' : 'EN'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsDark(!isDark)}
-                      className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      aria-label="Toggle Dark Mode"
-                    >
-                      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                    </button>
-                    <a
-                      href="https://admin.tcu.edu.tw/TCUstweb/stlogin.php"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      {t.tcuSystem}
-                    </a>
-                    <a
-                      href="https://docs.google.com/forms/d/e/1FAIpQLScpNFWH5ujRJ2EnpDQ8fE3fGerV-WDwul4ZOe2Z5Dg2AeSehw/viewform?usp=dialog"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all border border-blue-200 dark:border-blue-800/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <FileText className="w-4 h-4" />
-                      {t.lateForm}
-                    </a>
-                  </div>
+                // Show Result
+                resultCredits.textContent = credits;
+                const dormName = dormType === '1' ? translations[currentLang].maleDorm : translations[currentLang].femaleDorm;
+                resultRoomInfo.textContent = `${dormName} ${translations[currentLang].room} ${formattedRoomID}`;
+                resultCard.classList.remove('hidden');
 
-                  <form onSubmit={handleCheck} className="space-y-6">
-                    
-                    {/* Gender Selection */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                        <Building className="w-4 h-4 text-blue-500" />
-                        {t.dormTypeLabel}
-                      </label>
-                      <div className="flex bg-gray-100 dark:bg-gray-900/50 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
-                        <button
-                          type="button"
-                          onClick={() => setDormType('1')}
-                          className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                            dormType === '1'
-                              ? 'bg-white dark:bg-[#1e293b] text-blue-600 dark:text-blue-400 shadow-sm border border-gray-200 dark:border-gray-700'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          {t.maleDorm}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDormType('0')}
-                          className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                            dormType === '0'
-                              ? 'bg-white dark:bg-[#1e293b] text-pink-600 dark:text-pink-400 shadow-sm border border-gray-200 dark:border-gray-700'
-                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          {t.femaleDorm}
-                        </button>
-                      </div>
-                    </div>
+            } catch (err) {
+                errorMessage.textContent = err.message || translations[currentLang].errFetch;
+                errorContainer.classList.remove('hidden');
+            } finally {
+                // Reset Loading state
+                isLoading = false;
+                btnSubmit.disabled = !isValid;
+                btnText.textContent = translations[currentLang].btnCheck;
+                loadingIcon.classList.add('hidden');
+            }
+        });
 
-                    {/* Room ID Input */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2" htmlFor="roomID">
-                        <Hash className="w-4 h-4 text-blue-500" />
-                        {t.roomNumLabel}
-                      </label>
-                      <div className="relative">
-                        <input
-                          id="roomID"
-                          type="text"
-                          placeholder={t.placeholder}
-                          maxLength={4}
-                          value={roomID}
-                          onChange={(e) => setRoomID(e.target.value.toUpperCase())}
-                          className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700/50 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                        />
-                        {roomID.length > 0 && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                            {isValid ? (
-                              <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">
-                                {t.valid}
-                              </span>
-                            ) : (
-                              <span className="text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-md">
-                                {t.invalid}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+        // --- Fetch Stats ---
+        function getStatValue(keyLower, keyUpper, keySpaced) {
+            if (!stats) return '-';
+            if (stats[keyLower] !== undefined && stats[keyLower] !== null) return stats[keyLower];
+            if (stats[keyUpper] !== undefined && stats[keyUpper] !== null) return stats[keyUpper];
+            if (keySpaced && stats[keySpaced] !== undefined && stats[keySpaced] !== null) return stats[keySpaced];
+            return '-';
+        }
 
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={!isValid || loading}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                    >
-                      {loading ? (
-                        <React.Fragment>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          {t.btnConnecting}
-                        </React.Fragment>
-                      ) : (
-                        t.btnCheck
-                      )}
-                    </button>
+        async function fetchStats() {
+            const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+            
+            // Background Ping
+            try { await fetch(targetUrl, { method: 'POST' }); } 
+            catch { try { await fetch(proxyUrl, { method: 'POST' }); } catch {} }
 
-                    {/* Error Message */}
-                    {error && (
-                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{error}</p>
-                      </div>
-                    )}
-                  </form>
-                </div>
+            // Get Stats
+            try {
+                let res = await fetch(targetUrl);
+                if (!res.ok) throw new Error("Direct fetch blocked");
+                stats = await res.json();
+            } catch (err) {
+                try {
+                    let proxyRes = await fetch(proxyUrl);
+                    if (proxyRes.ok) stats = await proxyRes.json();
+                } catch (proxyErr) {
+                    console.warn("Stats fetch skipped.");
+                }
+            }
 
-                {/* Right Column: Results & Live Stats */}
-                <div className="w-full lg:w-[480px] flex flex-col gap-6 shrink-0">
-                  
-                  {/* Results Card */}
-                  {result && !loading && !error && dormType === fetchedDormType && roomID.toUpperCase() === fetchedRoomID && (
-                    <div className="bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700/50 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
-                      <div className="flex flex-col items-center justify-center text-center space-y-2">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-2">
-                          <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                          {t.creditsLeft}
-                        </p>
-                        
-                        {/* Massive Credits Display */}
-                        <div className="flex items-baseline justify-center gap-2 mb-2">
-                          <div className="text-5xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight">
-                            {result.credits}
-                          </div>
-                          <span className="text-2xl font-bold text-gray-400 dark:text-gray-500">{t.currency}</span>
-                        </div>
-                        <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                          {fetchedDormType === '1' ? t.maleDorm : t.femaleDorm} {t.room} {fetchedRoomID}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+            // Update UI Stats
+            if(stats) {
+                statToday.textContent = getStatValue('today', 'Today');
+                statLastWeek.textContent = getStatValue('lastWeek', 'LastWeek', 'Last Week');
+                statMonthly.textContent = getStatValue('monthly', 'Monthly', 'This Month');
+                statTotal.textContent = getStatValue('total', 'Total');
+            }
+        }
 
-                  {/* Live Stats Card */}
-                  <div className="bg-white/60 dark:bg-[#1e293b]/80 border border-gray-200 dark:border-gray-700/50 rounded-3xl p-5 shadow-sm backdrop-blur-sm transition-colors relative z-20">
-                    <div className="flex items-center gap-2 mb-3 justify-center">
-                      <Activity className="w-4 h-4 text-gray-400" />
-                      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.statsTitle}</h3>
-                    </div>
-                    
-                    <div className="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700/50">
-                      {/* Using the getStatValue helper to ensure data appears regardless of capitalization */}
-                      <div className="flex flex-col items-center flex-1 px-1">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsToday}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                          {getStatValue('today', 'Today')}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center flex-1 px-1">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsLastWeek}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                          {getStatValue('lastWeek', 'LastWeek', 'Last Week')}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center flex-1 px-1">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsMonthly}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                          {getStatValue('monthly', 'Monthly', 'This Month')}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center flex-1 px-1">
-                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsTotal}</span>
-                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
-                          {getStatValue('total', 'Total')}
-                        </span>
-                      </div>
-                    </div>
+        // --- Background Canvas Animation ---
+        function initCanvas() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let particlesArray = [];
+            let explosionsArray = [];
+            let mouse = { x: null, y: null, radius: 150 };
 
-                  </div>
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
 
-                </div>
-              </div>
-            </main>
-          </div>
-        </div>
-      );
-    }
+            window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+            window.addEventListener('click', (e) => {
+                for (let i = 0; i < 20; i++) explosionsArray.push(new Explosion(e.x, e.y));
+            });
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                particlesArray = [];
+                createParticles();
+            });
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.size = Math.random() * 2 + 1;
+                    this.speedX = Math.random() * 1 - 0.5;
+                    this.speedY = Math.random() * 1 - 0.5;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x > canvas.width || this.x < 0) this.speedX = -this.speedX;
+                    if (this.y > canvas.height || this.y < 0) this.speedY = -this.speedY;
+
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouse.radius) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = isDark 
+                            ? `rgba(147, 197, 253, ${(1 - distance / mouse.radius) * 0.5})` 
+                            : `rgba(59, 130, 246, ${(1 - distance / mouse.radius) * 0.3})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(this.x, this.y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+                draw() {
+                    ctx.fillStyle = isDark ? 'rgba(147, 197, 253, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            class Explosion {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.speedX = Math.random() * 6 - 3;
+                    this.speedY = Math.random() * 6 - 3;
+                    this.size = Math.random() * 5 + 2;
+                    const darkColors = ['#00f7ff', '#3b82f6', '#ffffff'];
+                    const lightColors = ['#3b82f6', '#60a5fa', '#bfdbfe'];
+                    const colors = isDark ? darkColors : lightColors;
+                    this.color = colors[Math.floor(Math.random() * colors.length)];
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.size > 0.1) this.size -= 0.1;
+                }
+                draw() {
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            function createParticles() {
+                const isMobile = window.innerWidth < 768;
+                const densityDivider = isMobile ? 25000 : 12000;
+                const numberOfParticles = (canvas.height * canvas.width) / densityDivider;
+                for (let i = 0; i < numberOfParticles; i++) {
+                    particlesArray.push(new Particle());
+                }
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                    particlesArray[i].draw();
+
+                    for (let j = i; j < particlesArray.length; j++) {
+                        let dx = particlesArray[i].x - particlesArray[j].x;
+                        let dy = particlesArray[i].y - particlesArray[j].y;
+                        let distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < 100) {
+                            ctx.beginPath();
+                            ctx.strokeStyle = isDark 
+                                ? `rgba(147, 197, 253, ${(1 - distance / 100) * 0.2})` 
+                                : `rgba(59, 130, 246, ${(1 - distance / 100) * 0.1})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.moveTo(particlesArray[i].x, particlesArray[i].y);
+                            ctx.lineTo(particlesArray[j].x, particlesArray[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                for (let i = 0; i < explosionsArray.length; i++) {
+                    explosionsArray[i].update();
+                    explosionsArray[i].draw();
+                    if (explosionsArray[i].size <= 0.2) {
+                        explosionsArray.splice(i, 1);
+                        i--;
+                    }
+                }
+            }
+
+            createParticles();
+            animate();
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            updateLanguage();
+            fetchStats();
+            initCanvas();
+        };
+    </script>
 </body>
 </html>
