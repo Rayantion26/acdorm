@@ -126,35 +126,42 @@
         const fetchStats = async () => {
           const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
           
-          // 1. Tell the Worker: "Hey, someone is here! Add +1 to the total."
+          // 1. The "Ping" (POST) - Trigger the Worker's Increment Logic
+          // This naturally fails in preview environments due to CORS/Referer, so we fail silently.
           try {
-            await fetch(targetUrl, { method: 'POST' });
+            await fetch(targetUrl, { 
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
           } catch (err) {
-            console.warn("Failed to increment counter:", err);
+            // Silently handled
           }
 
-          // 2. Now that we added +1, let's grab the new numbers to show on the screen
-          // Use multiple proxies for the stats request to bypass CORS blocks (like the main fetch mechanism)
-          const proxies = [
-            targetUrl, // Try direct fetch first
-            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
-          ];
-
-          for (const url of proxies) {
+          // 2. The "Pull" (GET) - Retrieve freshly updated JSON data
+          try {
+            const res = await fetch(targetUrl);
+            if (res.ok) {
+              const data = await res.json();
+              setStats(data);
+            } else {
+              throw new Error("Direct fetch blocked by CORS");
+            }
+          } catch (err) {
+            // CORS Fallback for preview environments (like the Canvas iframe)
+            // This prevents the "Failed to fetch" red error in your console while editing!
             try {
-              const res = await fetch(url);
-              if (res.ok) {
-                const data = await res.json();
+              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+              const proxyRes = await fetch(proxyUrl);
+              if (proxyRes.ok) {
+                const data = await proxyRes.json();
                 setStats(data);
-                return; // Break the loop and finish on success
               }
-            } catch (err) {
-              console.warn(`Stats fetch failed for ${url}:`, err.message);
+            } catch (proxyErr) {
+              console.warn("Stats fetch skipped: Environment prevents connection.");
             }
           }
-          console.error("Stats fetch error: All proxy attempts failed.");
         };
 
         fetchStats();
