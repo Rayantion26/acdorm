@@ -125,15 +125,20 @@
       useEffect(() => {
         const fetchStats = async () => {
           const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
+          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
           
           // 1. The "Ping" (POST) - Trigger the Worker's Increment Logic
+          // We send a simple POST with no headers to avoid strict CORS preflight blocks
           try {
-            await fetch(targetUrl, { 
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' }
-            });
+            const postRes = await fetch(targetUrl, { method: 'POST' });
+            if (!postRes.ok) throw new Error("Direct ping failed");
           } catch (err) {
-            // Silently handled for preview environments
+            // Fallback: If blocked, try to send the ping through the proxy
+            try {
+              await fetch(proxyUrl, { method: 'POST' });
+            } catch (proxyErr) {
+              console.warn("Ping failed via proxy too.");
+            }
           }
 
           // 2. The "Pull" (GET) - Retrieve freshly updated JSON data
@@ -141,15 +146,13 @@
             const res = await fetch(targetUrl);
             if (res.ok) {
               const data = await res.json();
-              console.log("🔥 Worker JSON Response Data:", data); // Debug tool for you!
               setStats(data);
             } else {
               throw new Error("Direct fetch blocked by CORS");
             }
           } catch (err) {
-            // CORS Fallback for Sandbox preview
+            // CORS Fallback for GET request
             try {
-              const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
               const proxyRes = await fetch(proxyUrl);
               if (proxyRes.ok) {
                 const data = await proxyRes.json();
@@ -433,7 +436,7 @@
                     </div>
                     
                     <div className="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700/50">
-                      {/* Using the new getStatValue helper to ensure data appears regardless of capitalization */}
+                      {/* Using the getStatValue helper to ensure data appears regardless of capitalization */}
                       <div className="flex flex-col items-center flex-1 px-1">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsToday}</span>
                         <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
