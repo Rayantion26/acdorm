@@ -112,7 +112,7 @@
       const [result, setResult] = useState(null);
       const [error, setError] = useState(null);
       const [isValid, setIsValid] = useState(false);
-      const [isDark, setIsDark] = useState(true); // Dark theme set to default true!
+      const [isDark, setIsDark] = useState(true); // Dark theme default
       const [lang, setLang] = useState('en'); // Language state
       
       const [fetchedDormType, setFetchedDormType] = useState(null);
@@ -127,16 +127,13 @@
           const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
           
           // 1. The "Ping" (POST) - Trigger the Worker's Increment Logic
-          // This naturally fails in preview environments due to CORS/Referer, so we fail silently.
           try {
             await fetch(targetUrl, { 
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              }
+              headers: { 'Content-Type': 'application/json' }
             });
           } catch (err) {
-            // Silently handled
+            // Silently handled for preview environments
           }
 
           // 2. The "Pull" (GET) - Retrieve freshly updated JSON data
@@ -144,13 +141,13 @@
             const res = await fetch(targetUrl);
             if (res.ok) {
               const data = await res.json();
+              console.log("🔥 Worker JSON Response Data:", data); // Debug tool for you!
               setStats(data);
             } else {
               throw new Error("Direct fetch blocked by CORS");
             }
           } catch (err) {
-            // CORS Fallback for preview environments (like the Canvas iframe)
-            // This prevents the "Failed to fetch" red error in your console while editing!
+            // CORS Fallback for Sandbox preview
             try {
               const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
               const proxyRes = await fetch(proxyUrl);
@@ -186,7 +183,6 @@
           // Target API URL
           const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
           
-          // Try multiple proxies since academic networks sometimes block certain proxy IPs
           const proxies = [
             `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
             `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
@@ -201,7 +197,6 @@
               const response = await fetch(proxyUrl);
               if (response.ok) {
                 textData = await response.text();
-                // Check if it returned the expected data (e.g. "剩餘金額: 571.0元")
                 if (textData && textData.includes('剩餘金額')) {
                   success = true;
                   break;
@@ -216,7 +211,6 @@
             throw new Error(t.errProxy);
           }
 
-          // Parse the text: "剩餘金額: 571.0元" -> extract 571.0
           const match = textData.match(/[\d.]+/);
           setResult({
             credits: match ? match[0] : '0.00'
@@ -235,9 +229,18 @@
         setLang(lang === 'en' ? 'zh' : 'en');
       };
 
+      // Helper function to safely extract stats regardless of capitalization
+      const getStatValue = (keyLower, keyUpper, keySpaced) => {
+        if (!stats) return '-';
+        if (stats[keyLower] !== undefined && stats[keyLower] !== null) return stats[keyLower];
+        if (stats[keyUpper] !== undefined && stats[keyUpper] !== null) return stats[keyUpper];
+        if (keySpaced && stats[keySpaced] !== undefined && stats[keySpaced] !== null) return stats[keySpaced];
+        return '-';
+      };
+
       return (
         <div className={isDark ? 'dark' : ''}>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-hidden">
+          <div className="min-h-screen bg-gray-50 dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-hidden">
             
             <main className="w-full max-w-5xl z-10 flex flex-col items-center">
               
@@ -261,14 +264,14 @@
               <div className="w-full flex flex-col lg:flex-row gap-6 justify-center items-start">
                 
                 {/* Left Column: Form Card */}
-                <div className="w-full lg:w-[480px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl transition-colors duration-300 relative z-20 shrink-0">
+                <div className="w-full lg:w-[480px] bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700/50 rounded-3xl p-6 shadow-xl transition-colors duration-300 relative z-20 shrink-0">
                   
-                  {/* Utility Buttons Row (Moved to top of Form) */}
+                  {/* Utility Buttons Row */}
                   <div className="flex flex-wrap items-center gap-2 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700/50">
                     <button
                       type="button"
                       onClick={toggleLanguage}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       aria-label="Toggle Language"
                     >
                       <Globe className="w-4 h-4" />
@@ -277,7 +280,7 @@
                     <button
                       type="button"
                       onClick={() => setIsDark(!isDark)}
-                      className="p-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       aria-label="Toggle Dark Mode"
                     >
                       {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -286,7 +289,7 @@
                       href="https://admin.tcu.edu.tw/TCUstweb/stlogin.php"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <ExternalLink className="w-4 h-4" />
                       {t.tcuSystem}
@@ -310,13 +313,13 @@
                         <Building className="w-4 h-4 text-blue-500" />
                         {t.dormTypeLabel}
                       </label>
-                      <div className="flex bg-gray-100 dark:bg-gray-900 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                      <div className="flex bg-gray-100 dark:bg-gray-900/50 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
                         <button
                           type="button"
                           onClick={() => setDormType('1')}
                           className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                             dormType === '1'
-                              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              ? 'bg-white dark:bg-[#1e293b] text-blue-600 dark:text-blue-400 shadow-sm border border-gray-200 dark:border-gray-700'
                               : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
                         >
@@ -327,7 +330,7 @@
                           onClick={() => setDormType('0')}
                           className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                             dormType === '0'
-                              ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+                              ? 'bg-white dark:bg-[#1e293b] text-pink-600 dark:text-pink-400 shadow-sm border border-gray-200 dark:border-gray-700'
                               : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
                         >
@@ -350,7 +353,7 @@
                           maxLength={4}
                           value={roomID}
                           onChange={(e) => setRoomID(e.target.value.toUpperCase())}
-                          className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                          className="w-full bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700/50 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600"
                         />
                         {roomID.length > 0 && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
@@ -399,7 +402,7 @@
                   
                   {/* Results Card */}
                   {result && !loading && !error && dormType === fetchedDormType && roomID.toUpperCase() === fetchedRoomID && (
-                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
+                    <div className="bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-gray-700/50 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
                       <div className="flex flex-col items-center justify-center text-center space-y-2">
                         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-2">
                           <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -423,29 +426,40 @@
                   )}
 
                   {/* Live Stats Card */}
-                  <div className="bg-white/60 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-3xl p-5 shadow-sm backdrop-blur-sm transition-colors relative z-20">
+                  <div className="bg-white/60 dark:bg-[#1e293b]/80 border border-gray-200 dark:border-gray-700/50 rounded-3xl p-5 shadow-sm backdrop-blur-sm transition-colors relative z-20">
                     <div className="flex items-center gap-2 mb-3 justify-center">
                       <Activity className="w-4 h-4 text-gray-400" />
                       <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.statsTitle}</h3>
                     </div>
-                    <div className="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700">
+                    
+                    <div className="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700/50">
+                      {/* Using the new getStatValue helper to ensure data appears regardless of capitalization */}
                       <div className="flex flex-col items-center flex-1 px-1">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsToday}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{stats ? stats.Today : '-'}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('today', 'Today')}
+                        </span>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-1">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsLastWeek}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{stats ? stats['Last Week'] : '-'}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('lastWeek', 'LastWeek', 'Last Week')}
+                        </span>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-1">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsMonthly}</span>
-                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">{stats ? stats.Monthly : '-'}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('monthly', 'Monthly', 'This Month')}
+                        </span>
                       </div>
                       <div className="flex flex-col items-center flex-1 px-1">
                         <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsTotal}</span>
-                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">{stats ? stats.Total : '-'}</span>
+                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
+                          {getStatValue('total', 'Total')}
+                        </span>
                       </div>
                     </div>
+
                   </div>
 
                 </div>
