@@ -42,6 +42,49 @@
     const Zap = ({ className }) => <IconWrapper className={className}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>;
     const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></IconWrapper>;
     const ThermometerSnowflake = ({ className }) => <IconWrapper className={className}><path d="M2 12h10"/><path d="M9 4v16"/><path d="m3 9 3 3-3 3"/><path d="m12 6 3-3 3 3"/><path d="M21 12h-4"/><path d="m15 15 3 3 3-3"/></IconWrapper>;
+    const Globe = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconWrapper>;
+
+    // --- Translations Dictionary ---
+    const translations = {
+      en: {
+        title: "AC Status Portal",
+        subtitle: "Monitor dormitory air conditioning credits instantly.",
+        dormTypeLabel: "Dormitory Type",
+        maleDorm: "Male Dorm",
+        femaleDorm: "Female Dorm",
+        roomNumLabel: "Room Number",
+        placeholder: "e.g. A201",
+        valid: "Valid",
+        invalid: "Invalid",
+        btnCheck: "Check AC Credits",
+        btnConnecting: "Connecting...",
+        creditsLeft: "AC Credits Left",
+        room: "Room",
+        currency: "元",
+        sysResponse: "System Response",
+        errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
+        errFetch: "Failed to fetch data. Please check your connection."
+      },
+      zh: {
+        title: "冷氣餘額查詢",
+        subtitle: "即時監控宿舍冷氣電費餘額。",
+        dormTypeLabel: "宿舍類型",
+        maleDorm: "男生宿舍",
+        femaleDorm: "女生宿舍",
+        roomNumLabel: "房間號碼",
+        placeholder: "例如: A201",
+        valid: "格式正確",
+        invalid: "格式錯誤",
+        btnCheck: "查詢冷氣餘額",
+        btnConnecting: "連線中...",
+        creditsLeft: "冷氣剩餘金額",
+        room: "房號",
+        currency: "元",
+        sysResponse: "系統原始回應",
+        errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
+        errFetch: "獲取資料失敗，請檢查您的網路連線狀態。"
+      }
+    };
 
     function App() {
       const [roomID, setRoomID] = useState('');
@@ -50,7 +93,13 @@
       const [result, setResult] = useState(null);
       const [error, setError] = useState(null);
       const [isValid, setIsValid] = useState(false);
-      const [isDark, setIsDark] = useState(false); // Theme state
+      const [isDark, setIsDark] = useState(true); // Dark theme set to default true!
+      const [lang, setLang] = useState('en'); // Language state
+      
+      const [fetchedDormType, setFetchedDormType] = useState(null);
+      const [fetchedRoomID, setFetchedRoomID] = useState(null);
+
+      const t = translations[lang]; // Active translation
 
       // Validate Room ID (e.g., A201: 1 Letter, 3 Digits)
       useEffect(() => {
@@ -98,62 +147,76 @@
           }
 
           if (!success) {
-            throw new Error("Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.");
+            throw new Error(t.errProxy);
           }
 
           // Parse the text: "剩餘金額: 571.0元" -> extract 571.0
           const match = textData.match(/[\d.]+/);
           setResult({
-            credits: match ? match[0] : '0.00',
-            raw: textData.trim()
+            credits: match ? match[0] : '0.00'
           });
+          setFetchedDormType(dormType);
+          setFetchedRoomID(formattedRoomID);
 
         } catch (err) {
-          setError(err.message || "Failed to fetch data. Please check your connection.");
+          setError(err.message || t.errFetch);
         } finally {
           setLoading(false);
         }
       };
 
+      const toggleLanguage = () => {
+        setLang(lang === 'en' ? 'zh' : 'en');
+      };
+
       return (
         <div className={isDark ? 'dark' : ''}>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-hidden">
             
-            {/* Theme Toggle Button */}
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-8">
+            {/* Top Right Controls (Language & Theme) */}
+            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex items-center gap-3 z-50">
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Toggle Language"
+              >
+                <Globe className="w-4 h-4" />
+                <span className="text-sm font-bold tracking-wide">{lang === 'en' ? '中' : 'EN'}</span>
+              </button>
+              
               <button
                 onClick={() => setIsDark(!isDark)}
-                className="p-3 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="p-2.5 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Toggle Dark Mode"
               >
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
             </div>
 
-            <main className="w-full max-w-md z-10">
+            <main className="w-full max-w-md z-10 mt-12 sm:mt-0">
               
               {/* Header */}
-              <div className="text-center mb-8 space-y-3">
+              <div className="text-center mb-8 space-y-3 animate-in fade-in duration-500">
                 <div className="inline-flex items-center justify-center p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-2 text-blue-600 dark:text-blue-400">
                   <ThermometerSnowflake className="w-8 h-8" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">
-                  AC Status Portal
+                  {t.title}
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Monitor dormitory air conditioning credits instantly.
+                  {t.subtitle}
                 </p>
               </div>
 
               {/* Form Card */}
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-colors duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-colors duration-300 relative z-20">
                 <form onSubmit={handleCheck} className="space-y-6">
                   
                   {/* Gender Selection */}
                   <div className="space-y-3">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                       <Building className="w-4 h-4 text-blue-500" />
-                      Dormitory Type
+                      {t.dormTypeLabel}
                     </label>
                     <div className="flex bg-gray-100 dark:bg-gray-900 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
                       <button
@@ -165,7 +228,7 @@
                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
                       >
-                        Male Dorm
+                        {t.maleDorm}
                       </button>
                       <button
                         type="button"
@@ -176,7 +239,7 @@
                             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
                       >
-                        Female Dorm
+                        {t.femaleDorm}
                       </button>
                     </div>
                   </div>
@@ -185,13 +248,13 @@
                   <div className="space-y-3">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2" htmlFor="roomID">
                       <Hash className="w-4 h-4 text-blue-500" />
-                      Room Number
+                      {t.roomNumLabel}
                     </label>
                     <div className="relative">
                       <input
                         id="roomID"
                         type="text"
-                        placeholder="e.g. A201"
+                        placeholder={t.placeholder}
                         maxLength={4}
                         value={roomID}
                         onChange={(e) => setRoomID(e.target.value.toUpperCase())}
@@ -201,11 +264,11 @@
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
                           {isValid ? (
                             <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">
-                              Valid
+                              {t.valid}
                             </span>
                           ) : (
                             <span className="text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-md">
-                              Invalid
+                              {t.invalid}
                             </span>
                           )}
                         </div>
@@ -222,10 +285,10 @@
                     {loading ? (
                       <React.Fragment>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Connecting...
+                        {t.btnConnecting}
                       </React.Fragment>
                     ) : (
-                      'Check AC Credits'
+                      t.btnCheck
                     )}
                   </button>
 
@@ -240,37 +303,26 @@
               </div>
 
               {/* Results Card */}
-              {result && !loading && !error && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors">
-                  <div className="flex flex-col items-center justify-center text-center space-y-2 mb-6">
+              {result && !loading && !error && dormType === fetchedDormType && roomID.toUpperCase() === fetchedRoomID && (
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
+                  <div className="flex flex-col items-center justify-center text-center space-y-2">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-2">
                       <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                      AC Credits Left
+                      {t.creditsLeft}
                     </p>
                     
                     {/* Massive Credits Display */}
-                    <div className="flex items-baseline justify-center gap-2">
+                    <div className="flex items-baseline justify-center gap-2 mb-2">
                       <div className="text-5xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight">
                         {result.credits}
                       </div>
-                      <span className="text-2xl font-bold text-gray-400 dark:text-gray-500">元</span>
+                      <span className="text-2xl font-bold text-gray-400 dark:text-gray-500">{t.currency}</span>
                     </div>
-                    <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">Room {roomID.toUpperCase()}</p>
-                  </div>
-
-                  {/* Raw System Response */}
-                  <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                      <Info className="w-4 h-4" />
-                      System Response
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 flex flex-col gap-1 text-center">
-                      <span className="text-lg font-medium text-gray-800 dark:text-gray-200">
-                        {result.raw}
-                      </span>
-                    </div>
+                    <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                      {fetchedDormType === '1' ? t.maleDorm : t.femaleDorm} {t.room} {fetchedRoomID}
+                    </p>
                   </div>
                 </div>
               )}
