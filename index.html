@@ -43,11 +43,15 @@
     const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></IconWrapper>;
     const ThermometerSnowflake = ({ className }) => <IconWrapper className={className}><path d="M2 12h10"/><path d="M9 4v16"/><path d="m3 9 3 3-3 3"/><path d="m12 6 3-3 3 3"/><path d="M21 12h-4"/><path d="m15 15 3 3 3-3"/></IconWrapper>;
     const Globe = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></IconWrapper>;
+    const ExternalLink = ({ className }) => <IconWrapper className={className}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></IconWrapper>;
+    const FileText = ({ className }) => <IconWrapper className={className}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></IconWrapper>;
+    const Activity = ({ className }) => <IconWrapper className={className}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></IconWrapper>;
 
     // --- Translations Dictionary ---
     const translations = {
       en: {
         title: "AC Status Portal",
+        campusBadge: "Jieren Campus Only",
         subtitle: "Monitor dormitory air conditioning credits instantly.",
         dormTypeLabel: "Dormitory Type",
         maleDorm: "Male Dorm",
@@ -63,10 +67,18 @@
         currency: "元",
         sysResponse: "System Response",
         errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
-        errFetch: "Failed to fetch data. Please check your connection."
+        errFetch: "Failed to fetch data. Please check your connection.",
+        tcuSystem: "TCU System",
+        lateForm: "Late Arrive Form",
+        statsTitle: "Live Usage Stats",
+        statsTotal: "Total",
+        statsMonthly: "This Month",
+        statsLastWeek: "Last Week",
+        statsToday: "Today"
       },
       zh: {
         title: "冷氣餘額查詢",
+        campusBadge: "限介仁校區",
         subtitle: "即時監控宿舍冷氣電費餘額。",
         dormTypeLabel: "宿舍類型",
         maleDorm: "男生宿舍",
@@ -82,7 +94,14 @@
         currency: "元",
         sysResponse: "系統原始回應",
         errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
-        errFetch: "獲取資料失敗，請檢查您的網路連線狀態。"
+        errFetch: "獲取資料失敗，請檢查您的網路連線狀態。",
+        tcuSystem: "TCU 校務系統",
+        lateForm: "晚歸請假表單",
+        statsTitle: "即時查詢統計",
+        statsTotal: "總計",
+        statsMonthly: "本月",
+        statsLastWeek: "上週",
+        statsToday: "今日"
       }
     };
 
@@ -98,8 +117,40 @@
       
       const [fetchedDormType, setFetchedDormType] = useState(null);
       const [fetchedRoomID, setFetchedRoomID] = useState(null);
+      const [stats, setStats] = useState(null);
 
       const t = translations[lang]; // Active translation
+
+      // Fetch Stats
+      useEffect(() => {
+        const fetchStats = async () => {
+          const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
+          
+          // Use multiple proxies for the stats request to bypass CORS blocks (like the main fetch mechanism)
+          const proxies = [
+            targetUrl, // Try direct fetch first
+            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
+          ];
+
+          for (const url of proxies) {
+            try {
+              const res = await fetch(url);
+              if (res.ok) {
+                const data = await res.json();
+                setStats(data);
+                return; // Break the loop and finish on success
+              }
+            } catch (err) {
+              console.warn(`Stats fetch failed for ${url}:`, err.message);
+            }
+          }
+          console.error("Stats fetch error: All proxy attempts failed.");
+        };
+
+        fetchStats();
+      }, []);
 
       // Validate Room ID (e.g., A201: 1 Letter, 3 Digits)
       useEffect(() => {
@@ -173,160 +224,217 @@
         <div className={isDark ? 'dark' : ''}>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-8 transition-colors duration-300 relative overflow-hidden">
             
-            {/* Top Right Controls (Language & Theme) */}
-            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex items-center gap-3 z-50">
-              <button
-                onClick={toggleLanguage}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Toggle Language"
-              >
-                <Globe className="w-4 h-4" />
-                <span className="text-sm font-bold tracking-wide">{lang === 'en' ? '中' : 'EN'}</span>
-              </button>
-              
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className="p-2.5 rounded-full bg-white dark:bg-gray-800 shadow-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Toggle Dark Mode"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-            </div>
-
-            <main className="w-full max-w-md z-10 mt-12 sm:mt-0">
+            <main className="w-full max-w-5xl z-10 flex flex-col items-center">
               
               {/* Header */}
-              <div className="text-center mb-8 space-y-3 animate-in fade-in duration-500">
+              <div className="text-center mb-8 space-y-3 animate-in fade-in duration-500 w-full flex flex-col items-center">
                 <div className="inline-flex items-center justify-center p-4 bg-blue-100 dark:bg-blue-900/30 rounded-2xl mb-2 text-blue-600 dark:text-blue-400">
                   <ThermometerSnowflake className="w-8 h-8" />
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">
                   {t.title}
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold tracking-wide bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
+                  {t.campusBadge}
+                </span>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
                   {t.subtitle}
                 </p>
               </div>
 
-              {/* Form Card */}
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-colors duration-300 relative z-20">
-                <form onSubmit={handleCheck} className="space-y-6">
+              {/* Main Two-Column Layout Container */}
+              <div className="w-full flex flex-col lg:flex-row gap-6 justify-center items-start">
+                
+                {/* Left Column: Form Card */}
+                <div className="w-full lg:w-[480px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl transition-colors duration-300 relative z-20 shrink-0">
                   
-                  {/* Gender Selection */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                      <Building className="w-4 h-4 text-blue-500" />
-                      {t.dormTypeLabel}
-                    </label>
-                    <div className="flex bg-gray-100 dark:bg-gray-900 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
-                      <button
-                        type="button"
-                        onClick={() => setDormType('1')}
-                        className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                          dormType === '1'
-                            ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        {t.maleDorm}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDormType('0')}
-                        className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
-                          dormType === '0'
-                            ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                        }`}
-                      >
-                        {t.femaleDorm}
-                      </button>
-                    </div>
+                  {/* Utility Buttons Row (Moved to top of Form) */}
+                  <div className="flex flex-wrap items-center gap-2 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700/50">
+                    <button
+                      type="button"
+                      onClick={toggleLanguage}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Toggle Language"
+                    >
+                      <Globe className="w-4 h-4" />
+                      <span className="text-sm font-bold tracking-wide">{lang === 'en' ? '中' : 'EN'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsDark(!isDark)}
+                      className="p-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Toggle Dark Mode"
+                    >
+                      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </button>
+                    <a
+                      href="https://admin.tcu.edu.tw/TCUstweb/stlogin.php"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all border border-gray-200 dark:border-gray-700/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      {t.tcuSystem}
+                    </a>
+                    <a
+                      href="https://docs.google.com/forms/d/e/1FAIpQLScpNFWH5ujRJ2EnpDQ8fE3fGerV-WDwul4ZOe2Z5Dg2AeSehw/viewform?usp=dialog"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all border border-blue-200 dark:border-blue-800/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <FileText className="w-4 h-4" />
+                      {t.lateForm}
+                    </a>
                   </div>
 
-                  {/* Room ID Input */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2" htmlFor="roomID">
-                      <Hash className="w-4 h-4 text-blue-500" />
-                      {t.roomNumLabel}
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="roomID"
-                        type="text"
-                        placeholder={t.placeholder}
-                        maxLength={4}
-                        value={roomID}
-                        onChange={(e) => setRoomID(e.target.value.toUpperCase())}
-                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                      />
-                      {roomID.length > 0 && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                          {isValid ? (
-                            <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">
-                              {t.valid}
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-md">
-                              {t.invalid}
-                            </span>
-                          )}
-                        </div>
+                  <form onSubmit={handleCheck} className="space-y-6">
+                    
+                    {/* Gender Selection */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                        <Building className="w-4 h-4 text-blue-500" />
+                        {t.dormTypeLabel}
+                      </label>
+                      <div className="flex bg-gray-100 dark:bg-gray-900 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                        <button
+                          type="button"
+                          onClick={() => setDormType('1')}
+                          className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                            dormType === '1'
+                              ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          {t.maleDorm}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDormType('0')}
+                          className={`flex-1 flex justify-center items-center py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                            dormType === '0'
+                              ? 'bg-white dark:bg-gray-700 text-pink-600 dark:text-pink-400 shadow-sm'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                        >
+                          {t.femaleDorm}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Room ID Input */}
+                    <div className="space-y-3">
+                      <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2" htmlFor="roomID">
+                        <Hash className="w-4 h-4 text-blue-500" />
+                        {t.roomNumLabel}
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="roomID"
+                          type="text"
+                          placeholder={t.placeholder}
+                          maxLength={4}
+                          value={roomID}
+                          onChange={(e) => setRoomID(e.target.value.toUpperCase())}
+                          className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono uppercase text-lg tracking-wider placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                        />
+                        {roomID.length > 0 && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                            {isValid ? (
+                              <span className="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-md">
+                                {t.valid}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-md">
+                                {t.invalid}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={!isValid || loading}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    >
+                      {loading ? (
+                        <React.Fragment>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          {t.btnConnecting}
+                        </React.Fragment>
+                      ) : (
+                        t.btnCheck
                       )}
-                    </div>
-                  </div>
+                    </button>
 
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={!isValid || loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                  >
-                    {loading ? (
-                      <React.Fragment>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        {t.btnConnecting}
-                      </React.Fragment>
-                    ) : (
-                      t.btnCheck
+                    {/* Error Message */}
+                    {error && (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{error}</p>
+                      </div>
                     )}
-                  </button>
+                  </form>
+                </div>
 
-                  {/* Error Message */}
-                  {error && (
-                    <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{error}</p>
+                {/* Right Column: Results & Live Stats */}
+                <div className="w-full lg:w-[480px] flex flex-col gap-6 shrink-0">
+                  
+                  {/* Results Card */}
+                  {result && !loading && !error && dormType === fetchedDormType && roomID.toUpperCase() === fetchedRoomID && (
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
+                      <div className="flex flex-col items-center justify-center text-center space-y-2">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-2">
+                          <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                          {t.creditsLeft}
+                        </p>
+                        
+                        {/* Massive Credits Display */}
+                        <div className="flex items-baseline justify-center gap-2 mb-2">
+                          <div className="text-5xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight">
+                            {result.credits}
+                          </div>
+                          <span className="text-2xl font-bold text-gray-400 dark:text-gray-500">{t.currency}</span>
+                        </div>
+                        <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                          {fetchedDormType === '1' ? t.maleDorm : t.femaleDorm} {t.room} {fetchedRoomID}
+                        </p>
+                      </div>
                     </div>
                   )}
-                </form>
-              </div>
 
-              {/* Results Card */}
-              {result && !loading && !error && dormType === fetchedDormType && roomID.toUpperCase() === fetchedRoomID && (
-                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 sm:p-8 shadow-xl animate-[fadeIn_0.5s_ease-out] transition-colors relative z-20">
-                  <div className="flex flex-col items-center justify-center text-center space-y-2">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-2">
-                      <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  {/* Live Stats Card */}
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl p-6 shadow-xl transition-colors relative z-20">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Activity className="w-5 h-5 text-blue-500" />
+                      <h3 className="font-bold text-gray-800 dark:text-gray-200">{t.statsTitle}</h3>
                     </div>
-                    <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-                      {t.creditsLeft}
-                    </p>
-                    
-                    {/* Massive Credits Display */}
-                    <div className="flex items-baseline justify-center gap-2 mb-2">
-                      <div className="text-5xl sm:text-6xl font-black text-gray-900 dark:text-white tracking-tight">
-                        {result.credits}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t.statsToday}</span>
+                        <span className="text-2xl font-black text-gray-900 dark:text-white">{stats ? stats.Today : '-'}</span>
                       </div>
-                      <span className="text-2xl font-bold text-gray-400 dark:text-gray-500">{t.currency}</span>
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t.statsLastWeek}</span>
+                        <span className="text-2xl font-black text-gray-900 dark:text-white">{stats ? stats['Last Week'] : '-'}</span>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t.statsMonthly}</span>
+                        <span className="text-2xl font-black text-gray-900 dark:text-white">{stats ? stats.Monthly : '-'}</span>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{t.statsTotal}</span>
+                        <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats ? stats.Total : '-'}</span>
+                      </div>
                     </div>
-                    <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                      {fetchedDormType === '1' ? t.maleDorm : t.femaleDorm} {t.room} {fetchedRoomID}
-                    </p>
                   </div>
-                </div>
-              )}
 
+                </div>
+              </div>
             </main>
           </div>
         </div>
