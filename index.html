@@ -83,7 +83,7 @@
 
         <!-- Main Layout Container -->
         <div
-            class="w-full flex flex-col lg:flex-row gap-4 sm:gap-8 justify-center items-center lg:items-start relative z-10 flex-1 min-h-0 pt-4 sm:pt-8 lg:pt-0 lg:my-auto">
+            class="w-full flex flex-col lg:flex-row gap-4 sm:gap-8 justify-center items-center relative z-10 flex-1 min-h-0 pt-4 sm:pt-8 lg:pt-0 lg:my-auto">
 
             <!-- Left Column Container -->
             <div
@@ -299,7 +299,7 @@
 
             <!-- Right Column: Results & Live Stats -->
             <div
-                class="w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[480px] flex flex-col gap-3 sm:gap-6 shrink-0 relative z-20 justify-center lg:pt-[106px]">
+                class="w-full max-w-[360px] sm:max-w-[400px] lg:max-w-[480px] flex flex-col gap-3 sm:gap-6 shrink-0 relative z-20 justify-center">
 
                 <!-- Results Card -->
                 <div id="resultCard"
@@ -435,7 +435,7 @@
                 creditsLeft: "AC Credits Left",
                 room: "Room",
                 currency: "元",
-                errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
+                errProxy: "Cannot connect to the server. Try accessing from campus, or the server may be offline.",
                 errFetch: "Failed to fetch data. Please check your connection.",
                 errNotFound: "Room Not Registered. The room number you entered does not exist in the system.",
                 tcuSystem: "TCU System",
@@ -465,7 +465,7 @@
                 creditsLeft: "冷氣剩餘金額",
                 room: "房號",
                 currency: "元",
-                errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
+                errProxy: "無法連線至伺服器。請嘗試在校內網路下查詢，或伺服器可能離線中。",
                 errFetch: "獲取資料失敗，請檢查您的網路連線狀態。",
                 errNotFound: "查無此房號。您輸入的房號不存在於系統中。",
                 tcuSystem: "TCU 校務系統",
@@ -617,14 +617,14 @@
             const formattedRoomID = roomID;
             const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
 
-            const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-            ];
-
             let success = false;
             let textData = "";
-            let specificError = null;
+
+            const proxies = [
+                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
 
             try {
                 for (const proxyUrl of proxies) {
@@ -636,16 +636,15 @@
                                 success = true;
                                 break;
                             } else if (textData && textData.includes('查無此房號')) {
-                                specificError = translations[currentLang].errNotFound;
-                                break;
+                                throw new Error(translations[currentLang].errNotFound);
                             }
                         }
                     } catch (err) {
+                        if (err.message === translations[currentLang].errNotFound) throw err;
                         console.warn("Proxy failed:", proxyUrl);
                     }
                 }
 
-                if (specificError) throw new Error(specificError);
                 if (!success) throw new Error(translations[currentLang].errProxy);
 
                 // Parse Result
@@ -659,7 +658,11 @@
                 resultCard.classList.remove('hidden');
 
             } catch (err) {
-                errorMessage.textContent = err.message || translations[currentLang].errFetch;
+                // Promise.any() throws AggregateError when all proxies fail
+                const msg = (err instanceof AggregateError || err.message === 'All promises were rejected')
+                    ? translations[currentLang].errProxy
+                    : (err.message || translations[currentLang].errFetch);
+                errorMessage.textContent = msg;
                 errorContainer.classList.remove('hidden');
             } finally {
                 // Reset Loading state
