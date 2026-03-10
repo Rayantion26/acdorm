@@ -482,7 +482,8 @@
         };
 
         // --- State Variables ---
-        let currentLang = 'en';
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentLang = urlParams.get('lang') === 'zh' ? 'zh' : 'en';
         let isDark = true;
         let dormType = '1'; // '1' = Male, '0' = Female
         let roomID = '';
@@ -545,6 +546,12 @@
 
         btnLang.addEventListener('click', () => {
             currentLang = currentLang === 'en' ? 'zh' : 'en';
+            
+            // Update URL so shareable links retain the language
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('lang', currentLang);
+            window.history.pushState({}, '', newUrl);
+            
             updateLanguage();
         });
 
@@ -621,9 +628,9 @@
             let textData = "";
 
             const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
                 `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
             ];
 
             try {
