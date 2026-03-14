@@ -76,8 +76,68 @@
         <span class="text-[10px] sm:text-xs font-bold tracking-wide">Give stars!!</span>
     </a>
 
+<<<<<<< HEAD
     <!-- Interactive Background Canvas -->
     <canvas id="bg-canvas"></canvas>
+=======
+    // --- Translations Dictionary ---
+    const translations = {
+      en: {
+        title: "AC Status Portal",
+        campusBadge: "Jieren Campus Only",
+        subtitle: "Monitor dormitory air conditioning credits instantly.",
+        dormTypeLabel: "Dormitory Type",
+        maleDorm: "Male Dorm",
+        femaleDorm: "Female Dorm",
+        roomNumLabel: "Room Number",
+        placeholder: "e.g. A201",
+        valid: "Valid",
+        invalid: "Invalid",
+        btnCheck: "Check AC Credits",
+        btnConnecting: "Connecting...",
+        creditsLeft: "AC Credits Left",
+        room: "Room",
+        currency: "元",
+        sysResponse: "System Response",
+        errProxy: "Cannot connect to the server. The school's firewall might be blocking external proxies, or the server is offline.",
+        errFetch: "Failed to fetch data. Please check your connection.",
+        tcuSystem: "TCU System",
+        lateForm: "Late Arrive Form",
+        statsTitle: "Live Usage Stats",
+        statsTotal: "Total",
+        statsMonthly: "This Month",
+        statsThisWeek: "This Week",
+        statsToday: "Today"
+      },
+      zh: {
+        title: "冷氣餘額查詢",
+        campusBadge: "限介仁校區",
+        subtitle: "即時監控宿舍冷氣電費餘額。",
+        dormTypeLabel: "宿舍類型",
+        maleDorm: "男生宿舍",
+        femaleDorm: "女生宿舍",
+        roomNumLabel: "房間號碼",
+        placeholder: "例如: A201",
+        valid: "格式正確",
+        invalid: "格式錯誤",
+        btnCheck: "查詢冷氣餘額",
+        btnConnecting: "連線中...",
+        creditsLeft: "冷氣剩餘金額",
+        room: "房號",
+        currency: "元",
+        sysResponse: "系統原始回應",
+        errProxy: "無法連線至伺服器。學校防火牆可能阻擋了外部連線，或是伺服器目前離線中。",
+        errFetch: "獲取資料失敗，請檢查您的網路連線狀態。",
+        tcuSystem: "TCU 校務系統",
+        lateForm: "晚歸請假表單",
+        statsTitle: "即時查詢統計",
+        statsTotal: "總計",
+        statsMonthly: "本月",
+        statsThisWeek: "本週",
+        statsToday: "今日"
+      }
+    };
+>>>>>>> 9a1ad0a (Update stats display and SEO files)
 
     <main class="w-full max-w-5xl z-10 flex flex-col items-center justify-center h-full min-h-0 relative">
 
@@ -613,6 +673,7 @@
             e.preventDefault();
             if (!isValid) return;
 
+<<<<<<< HEAD
             // Set Loading state
             isLoading = true;
             btnSubmit.disabled = true;
@@ -620,6 +681,42 @@
             loadingIcon.classList.remove('hidden');
             errorContainer.classList.add('hidden');
             resultCard.classList.add('hidden');
+=======
+                  {/* Live Stats Card */}
+                  <div className="bg-white/60 dark:bg-[#1e293b]/80 border border-gray-200 dark:border-gray-700/50 rounded-3xl p-5 shadow-sm backdrop-blur-sm transition-colors relative z-20">
+                    <div className="flex items-center gap-2 mb-3 justify-center">
+                      <Activity className="w-4 h-4 text-gray-400" />
+                      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.statsTitle}</h3>
+                    </div>
+                    
+                    <div className="flex justify-between items-center divide-x divide-gray-200 dark:divide-gray-700/50">
+                      {/* Using the getStatValue helper to ensure data appears regardless of capitalization */}
+                      <div className="flex flex-col items-center flex-1 px-1">
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsToday}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('today', 'Today')}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center flex-1 px-1">
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsThisWeek}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('this_week', 'thisWeek', 'This Week')}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center flex-1 px-1">
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsMonthly}</span>
+                        <span className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                          {getStatValue('monthly', 'Monthly', 'This Month')}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center flex-1 px-1">
+                        <span className="text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{t.statsTotal}</span>
+                        <span className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
+                          {getStatValue('total', 'Total')}
+                        </span>
+                      </div>
+                    </div>
+>>>>>>> 9a1ad0a (Update stats display and SEO files)
 
             const formattedRoomID = roomID;
             const targetUrl = `http://203.72.75.10:808/Dormitory/GetRoomInfoByID?ID=${formattedRoomID}&SEX=${dormType}`;
