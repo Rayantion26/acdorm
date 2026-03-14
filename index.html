@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Instantly check dormitory air conditioning credit balances for TCU dorms." />
     <title>AC Status Portal</title>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml"
@@ -490,8 +491,19 @@
         let isValid = false;
         let isLoading = false;
         let stats = null;
+        let hasSearchedFemale = false;
+        let lastResultDormType = null;
+        let lastResultRoomID = null;
 
-        // --- DOM Elements ---
+        // --- Update Result Visibility ---
+        function updateResultVisibility() {
+            // Hide result if on female dorm and hasn't searched female yet, unless we have a cached result for current inputs
+            if (dormType === '0' && !hasSearchedFemale && !(lastResultDormType === dormType && lastResultRoomID === roomID)) {
+                resultCard.classList.add('hidden');
+            } else if (lastResultDormType === dormType && lastResultRoomID === roomID) {
+                resultCard.classList.remove('hidden');
+            }
+        }
         const htmlRoot = document.documentElement;
         const btnLang = document.getElementById('btn-lang');
         const langText = document.getElementById('langText');
@@ -581,6 +593,7 @@
                 btnMale.className = "relative flex-1 flex justify-center items-center py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium z-10 rounded-md sm:rounded-lg transition-colors duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200";
                 btnFemale.className = "relative flex-1 flex justify-center items-center py-1.5 sm:py-2.5 text-xs sm:text-sm font-medium z-10 rounded-md sm:rounded-lg transition-colors duration-300 text-pink-600 dark:text-pink-400";
             }
+            updateResultVisibility();
         }
         btnMale.addEventListener('click', () => setDormType('1'));
         btnFemale.addEventListener('click', () => setDormType('0'));
@@ -592,6 +605,9 @@
 
             const regex = /^[a-zA-Z]\d{3}$/;
             isValid = regex.test(roomID);
+
+            // Update result visibility
+            updateResultVisibility();
 
             if (roomID.length > 0) {
                 validationBadge.classList.remove('hidden');
@@ -612,6 +628,11 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!isValid) return;
+
+            // Skip if already showing the same result
+            if (lastResultDormType === dormType && lastResultRoomID === roomID) {
+                return;
+            }
 
             // Set Loading state
             isLoading = true;
@@ -664,6 +685,13 @@
                 resultRoomInfo.textContent = `${dormName} ${translations[currentLang].room} ${formattedRoomID}`;
                 resultCard.classList.remove('hidden');
 
+                // Update last result tracking
+                lastResultDormType = dormType;
+                lastResultRoomID = roomID;
+
+                // Mark as searched for female if applicable
+                if (dormType === '0') hasSearchedFemale = true;
+
             } catch (err) {
                 // Promise.any() throws AggregateError when all proxies fail
                 const msg = (err instanceof AggregateError || err.message === 'All promises were rejected')
@@ -693,18 +721,14 @@
             const targetUrl = 'https://acdorm.pres26aaron.workers.dev/';
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-            // Background Ping
-            try { await fetch(targetUrl, { method: 'POST' }); }
-            catch { try { await fetch(proxyUrl, { method: 'POST' }); } catch { } }
-
-            // Get Stats
+            // Get Stats (with credentials to avoid counting refresh as view)
             try {
-                let res = await fetch(targetUrl);
+                let res = await fetch(targetUrl, { method: 'GET', credentials: 'include' });
                 if (!res.ok) throw new Error("Direct fetch blocked");
                 stats = await res.json();
             } catch (err) {
                 try {
-                    let proxyRes = await fetch(proxyUrl);
+                    let proxyRes = await fetch(proxyUrl, { method: 'GET', credentials: 'include' });
                     if (proxyRes.ok) stats = await proxyRes.json();
                 } catch (proxyErr) {
                     console.warn("Stats fetch skipped.");
