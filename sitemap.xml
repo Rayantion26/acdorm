@@ -2,28 +2,20 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-<<<<<<< HEAD
-    <loc>https://rayantion.me/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://rayantion.me/" />
-    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://rayantion.me/?lang=zh" />
-    <lastmod>2024-03-09</lastmod>
-    <changefreq>monthly</changefreq>
-=======
     <loc>https://www.acdorm.my.id/</loc>
-    <lastmod>2024-03-14</lastmod>
+    <lastmod>2026-03-14</lastmod>
     <changefreq>weekly</changefreq>
->>>>>>> 9a1ad0a (Update stats display and SEO files)
     <priority>1.0</priority>
     <xhtml:link rel="alternate" hreflang="en" href="https://www.acdorm.my.id/"/>
     <xhtml:link rel="alternate" hreflang="zh" href="https://www.acdorm.my.id/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.acdorm.my.id/"/>
   </url>
   <url>
-    <loc>https://rayantion.me/?lang=zh</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://rayantion.me/" />
-    <xhtml:link rel="alternate" hreflang="zh-TW" href="https://rayantion.me/?lang=zh" />
-    <lastmod>2024-03-09</lastmod>
-    <changefreq>monthly</changefreq>
+    <loc>https://www.acdorm.my.id/?lang=zh</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.acdorm.my.id/"/>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://www.acdorm.my.id/?lang=zh"/>
+    <lastmod>2026-03-14</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
 </urlset>
